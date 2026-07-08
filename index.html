@@ -88,16 +88,19 @@
 
     #paytable {
       border-collapse: collapse;
-      min-width: 160px;
+      table-layout: fixed;
+      width: 220px;
     }
     #paytable th, #paytable td {
       padding: 4px 8px;
       text-align: left;
       color: #007700;
       font-size: 1em;
+      overflow: hidden;
+      white-space: nowrap;
     }
-    #paytable td:first-child { width: 4ch; }
-    #paytable td:last-child  { width: 14ch; }
+    #paytable col.col-hits   { width: 60px; }
+    #paytable col.col-payout { width: 160px; }
     #paytable th { color: #00aa00; border-bottom: 1px solid #004400; }
     #paytable tr.pt-winner td  { background: #004400; color: #00ff00; font-weight: bold; }
     #paytable tr.pt-super td   { background: #0055ff; color: #fff;    font-weight: bold; }
@@ -129,6 +132,7 @@
 <div id="grid-area">
   <div id="grid"></div>
   <table id="paytable">
+    <colgroup><col class="col-hits"><col class="col-payout"></colgroup>
     <thead><tr><th>Hits</th><th>Payout</th></tr></thead>
     <tbody id="paytable-body"></tbody>
   </table>
