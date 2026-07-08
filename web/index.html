@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superball Keno</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #000;
+      color: #00cc00;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 1.8em;
+      letter-spacing: 0.25em;
+      color: #00ff00;
+      margin-bottom: 16px;
+    }
+
+    #message {
+      font-size: 1.3em;
+      min-height: 1.8em;
+      margin-bottom: 12px;
+      color: gold;
+      text-align: center;
+    }
+
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(10, 44px);
+      gap: 3px;
+      margin-bottom: 20px;
+    }
+
+    .ball {
+      width: 44px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95em;
+      font-weight: bold;
+      border: 1px solid #003300;
+      user-select: none;
+      transition: background-color 0.15s, color 0.15s;
+    }
+
+    /* color pairs matching the C++ version */
+    .ball.grid { color: #00cc00; background: #000; }
+    .ball.pick { color: #fff;    background: #006600; border-color: #00ff00; }
+    .ball.miss { color: #ff4444; background: #000;    border-color: #440000; }
+    .ball.hit  { color: #ff2222; background: #ddd;   border-color: #ff2222; }
+
+    /* superball: blue when revealed */
+    .ball.superball { color: #fff; background: #0055ff; border-color: #0055ff; outline: 2px solid gold; outline-offset: -2px; }
+
+    #stats {
+      font-size: 1.1em;
+      line-height: 1.9;
+      min-width: 280px;
+      margin-bottom: 20px;
+    }
+
+    .stat-label { color: #007700; }
+    .jackpot-val { color: gold; font-weight: bold; background: transparent; border: none; border-bottom: 1px solid gold; font-family: inherit; font-size: inherit; width: 10ch; }
+    .jackpot-val:disabled { border-bottom-color: transparent; }
+    .pos { color: #00ff00; }
+    .neg { color: #ff4444; }
+
+    #controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+    button {
+      background: #003300;
+      color: #00ff00;
+      border: 2px solid #00aa00;
+      padding: 10px 28px;
+      font-family: inherit;
+      font-size: 1em;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: background 0.1s, color 0.1s;
+    }
+    button:hover:not(:disabled) { background: #00aa00; color: #000; }
+    button:disabled { opacity: 0.35; cursor: default; }
+
+    #btn-play { border-color: gold; color: gold; }
+    #btn-play:hover:not(:disabled) { background: gold; color: #000; }
+  </style>
+</head>
+<body>
+
+<h1>SUPERBALL KENO</h1>
+<div id="message">Press Quick Pick to start</div>
+<div id="grid"></div>
+
+<div id="stats">
+  <span class="stat-label">Jackpot: $</span><input id="s-jackpot" class="jackpot-val" type="text" value="143,000.00" onchange="jackpot = parseFloat(this.value.replace(/,/g,'')) || 0"><br>
+  <span class="stat-label">Hand:    </span><span id="s-hand">—</span><br>
+  <span class="stat-label">Last Payout: </span><span id="s-payout">—</span><br>
+  <span class="stat-label">Net:     </span><span id="s-net">$0.00</span>
+</div>
+
+<div id="controls">
+  <button id="btn-pick" onclick="quickPick()">Quick Pick</button>
+  <button id="btn-play" onclick="startAutoplay()" disabled>Start Autoplay</button>
+  <button id="btn-stop" onclick="stopAutoplay()" disabled>Stop</button>
+</div>
+
+<script>
+  const PAYTABLE = { 4: 5, 5: 20, 6: 45, 7: 125, 8: 500 };
+  const BET = 5;
+  const DRAW_PAUSE_MS = 100;
+  const RESULT_PAUSE_MS = 1200;
+
+  let jackpot = 143000;
+  let net = 0;
+  let hand = 0;
+  let picks = [];
+  let draws = [];
+  let superball = -1;
+  let revealed = [];
+  let busy = false;
+  let stopRequested = false;
+
+  // Build the 80-ball grid (balls 1–80, laid out 10 per row)
+  const gridEl = document.getElementById('grid');
+  for (let n = 1; n <= 80; n++) {
+    const div = document.createElement('div');
+    div.className = 'ball grid';
+    div.id = `b${n}`;
+    div.textContent = String(n).padStart(2, '0');
+    gridEl.appendChild(div);
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  function quickPick() {
+    if (busy) return;
+    const pool = Array.from({length: 80}, (_, i) => i + 1);
+    shuffle(pool);
+    picks     = pool.slice(0, 10);
+    superball = -1;
+    draws     = [];
+    revealed  = [];
+    renderGrid();
+    document.getElementById('btn-play').disabled = false;
+    setMessage(`${picks.length} spots picked`);
+  }
+
+  function renderGrid() {
+    for (let n = 1; n <= 80; n++) {
+      const cell = document.getElementById(`b${n}`);
+      const isPick    = picks.includes(n);
+      const isRevealed = revealed.includes(n);
+      const isHit     = isPick && isRevealed;
+      const isMiss    = !isPick && isRevealed;
+      const isSuper   = n === superball && revealed.includes(n) && picks.includes(n);
+
+      let cls = 'ball ';
+      if      (isHit)  cls += 'hit';
+      else if (isMiss) cls += 'miss';
+      else if (isPick) cls += 'pick';
+      else             cls += 'grid';
+      if (isSuper)     cls += ' superball';
+
+      cell.className = cls;
+    }
+  }
+
+  function fmt(v, decimals=2) {
+    return v.toLocaleString('en-US', {style:'currency', currency:'USD', minimumFractionDigits:decimals, maximumFractionDigits:decimals});
+  }
+
+  function setMessage(txt) {
+    document.getElementById('message').textContent = txt;
+  }
+
+  function updateStats(payout) {
+    document.getElementById('s-jackpot').value = jackpot.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('s-hand').textContent    = hand;
+    if (payout != null) document.getElementById('s-payout').textContent = fmt(payout, 0);
+    const netEl = document.getElementById('s-net');
+    netEl.textContent = fmt(net);
+    netEl.className   = net >= 0 ? 'pos' : 'neg';
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function setButtons(playing) {
+    document.getElementById('btn-pick').disabled = playing;
+    document.getElementById('btn-play').disabled = playing;
+    document.getElementById('btn-stop').disabled = !playing;
+    document.getElementById('s-jackpot').disabled = playing;
+  }
+
+  function stopAutoplay() {
+    stopRequested = true;
+  }
+
+  async function startAutoplay() {
+    if (busy || picks.length === 0) return;
+    jackpot = parseFloat(document.getElementById('s-jackpot').value.replace(/,/g, '')) || jackpot;
+    busy = true;
+    stopRequested = false;
+    setButtons(true);
+
+    let isJackpot = false;
+    while (!isJackpot && !stopRequested) {
+      hand++;
+      net -= BET;
+      jackpot += 0.05;
+
+      // Draw 20 balls
+      const pool = Array.from({length: 80}, (_, i) => i + 1);
+      shuffle(pool);
+      draws     = pool.slice(0, 20);
+      superball = draws[19];
+      revealed = [];
+      renderGrid();
+      setMessage('');
+
+      // Animate reveals
+      for (const d of draws) {
+        revealed.push(d);
+        renderGrid();
+        await sleep(DRAW_PAUSE_MS);
+      }
+
+      // Score
+      const hits     = picks.filter(p => draws.includes(p)).length;
+      const superHit = picks.includes(superball);
+      isJackpot      = hits >= 9;
+
+      let payout = 0;
+      if (isJackpot) {
+        payout = jackpot;
+      } else {
+        payout = PAYTABLE[hits] || 0;
+        if (superHit && payout > 0) payout *= 4;
+      }
+      net += payout;
+      updateStats(payout);
+
+      if (isJackpot) {
+        setMessage(`JACKPOT!  ${hits}/10 hits — ${fmt(payout)}`);
+      } else if (payout > 0) {
+        const superMsg = superHit ? ' ★ SUPERBALL 4×!' : '';
+        setMessage(`${hits}/10 hits — ${fmt(payout)}${superMsg}`);
+      } else {
+        setMessage(`${hits}/10 hits — no win`);
+      }
+
+      await sleep(payout > 0 ? 2000 : RESULT_PAUSE_MS);
+    }
+
+    busy = false;
+    setButtons(false);
+
+    if (isJackpot) {
+      setMessage(`JACKPOT!  You won ${fmt(jackpot)} after ${hand} hand${hand===1?'':'s'}!`);
+      document.getElementById('btn-play').disabled = true; // require new Quick Pick
+    }
+  }
+</script>
+</body>
+</html>
