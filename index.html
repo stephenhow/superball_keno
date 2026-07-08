@@ -91,11 +91,13 @@
       min-width: 160px;
     }
     #paytable th, #paytable td {
-      padding: 4px 24px 4px 8px;
+      padding: 4px 8px;
       text-align: left;
       color: #007700;
       font-size: 1em;
     }
+    #paytable td:first-child { width: 4ch; }
+    #paytable td:last-child  { width: 14ch; }
     #paytable th { color: #00aa00; border-bottom: 1px solid #004400; }
     #paytable tr.pt-winner td  { background: #004400; color: #00ff00; font-weight: bold; }
     #paytable tr.pt-super td   { background: #0055ff; color: #fff;    font-weight: bold; }
@@ -274,7 +276,7 @@
       row.className = 'pt-jackpot';
     } else if (superHit) {
       row.className = 'pt-super';
-      row.cells[1].textContent = `$${PAYTABLE[hits] * 4}  ★ ×4`;
+      row.cells[1].textContent = `$${PAYTABLE[hits]} ×4 = $${PAYTABLE[hits]*4}`;
     } else {
       row.className = 'pt-winner';
     }

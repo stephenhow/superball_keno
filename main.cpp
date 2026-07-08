@@ -9,6 +9,8 @@
 #define DRAW_PAUSE 100
 #define CONTRIBUTION_RATE 0.02
 
+#define SPEED_UP 4
+
 #define GRID 1
 #define HIT  2
 #define MISS 3
@@ -97,7 +99,7 @@ void paint_draws(std::vector<int> &draws) {
 			draw_number(draw, (last ? SUPERBALL_HIT : HIT));
 		}
 		refresh();
-		napms(DRAW_PAUSE);
+		napms(DRAW_PAUSE/SPEED_UP);
 	}
 }
 
@@ -149,7 +151,7 @@ int main() {
 		paint_draws(draws);
 		display_stats(jackpot, net, hand, payout);
 		refresh();
-		napms((payout > 0) ? WIN_PAUSE : LOSE_PAUSE);
+		napms(((payout > 0) ? WIN_PAUSE : LOSE_PAUSE)/SPEED_UP);
 		//isJackpot = true;
 	}
 	
