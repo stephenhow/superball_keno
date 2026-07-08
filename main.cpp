@@ -6,6 +6,7 @@
 
 #define INTRA_GAME_PAUSE 1000
 #define DRAW_PAUSE 200
+#define CONTRIBUTION_RATE 0.02
 
 #define GRID 1
 #define HIT  2
@@ -116,7 +117,7 @@ int main() {
 	initscr();
 	start_color();
 	init_pair(GRID, COLOR_GREEN, COLOR_BLACK);		// number grid
-	init_pair(HIT, COLOR_RED, COLOR_WHITE);			// hit
+	init_pair(HIT, COLOR_BLUE, COLOR_WHITE);			// hit
 	init_pair(MISS, COLOR_RED, COLOR_BLACK);		// miss
 	init_pair(PICK, COLOR_WHITE, COLOR_GREEN);		// picks
 	curs_set(0);
@@ -136,7 +137,7 @@ int main() {
 			payout = jackpot;
 		}
 		net += payout;
-		jackpot += 0.05;	// 1% contribution
+		jackpot += 5*CONTRIBUTION_RATE;	// 1% contribution
 		refresh();
 		paint_draws(draws);
 		display_stats(jackpot, net, hand, payout);

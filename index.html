@@ -222,7 +222,7 @@
     while (!isJackpot && !stopRequested) {
       hand++;
       net -= BET;
-      jackpot += 0.05;
+      jackpot += 0.10;
 
       // Draw 20 balls
       const pool = Array.from({length: 80}, (_, i) => i + 1);
