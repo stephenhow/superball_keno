@@ -150,6 +150,7 @@
   <button id="btn-pick" onclick="quickPick()">Quick Pick</button>
   <button id="btn-play" onclick="startAutoplay()" disabled>Start Autoplay</button>
   <button id="btn-stop" onclick="stopAutoplay()" disabled>Stop</button>
+  <button id="btn-speed" onclick="cycleSpeed()">></button>
 </div>
 
 
@@ -168,6 +169,15 @@
   let revealed = [];
   let busy = false;
   let stopRequested = false;
+  let speed = 1;
+  const SPEEDS = [1, 2, 4];
+  const SPEED_LABELS = ['>', '>>', '>>>'];
+
+  function cycleSpeed() {
+    const idx = (SPEEDS.indexOf(speed) + 1) % SPEEDS.length;
+    speed = SPEEDS[idx];
+    document.getElementById('btn-speed').textContent = SPEED_LABELS[idx];
+  }
 
   // Build the 80-ball grid (balls 1–80, laid out 10 per row)
   const gridEl = document.getElementById('grid');
@@ -304,7 +314,7 @@
       for (const d of draws) {
         revealed.push(d);
         renderGrid();
-        await sleep(DRAW_PAUSE_MS);
+        await sleep(DRAW_PAUSE_MS / speed);
       }
 
       // Score
@@ -332,7 +342,7 @@
         setMessage(`${hits}/10 hits — no win`);
       }
 
-      await sleep(payout > 0 ? 2000 : RESULT_PAUSE_MS);
+      await sleep((payout > 0 ? 2000 : RESULT_PAUSE_MS) / speed);
     }
 
     busy = false;
