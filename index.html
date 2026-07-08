@@ -123,6 +123,15 @@
 
     #btn-play { border-color: gold; color: gold; }
     #btn-play:hover:not(:disabled) { background: gold; color: #000; }
+
+    /* scale down for phones in landscape */
+    @media (max-width: 900px) and (orientation: landscape) {
+      html { zoom: 0.65; }
+    }
+    /* scale down for phones in portrait */
+    @media (max-width: 500px) and (orientation: portrait) {
+      html { zoom: 0.5; }
+    }
   </style>
 </head>
 <body>
