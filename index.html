@@ -128,14 +128,7 @@
   <div id="grid"></div>
   <table id="paytable">
     <thead><tr><th>Hits</th><th>Payout</th></tr></thead>
-    <tbody>
-      <tr id="pt-9"><td>9 – 10</td><td>Jackpot</td></tr>
-      <tr id="pt-8"><td>8</td><td>$600</td></tr>
-      <tr id="pt-7"><td>7</td><td>$125</td></tr>
-      <tr id="pt-6"><td>6</td><td>$45</td></tr>
-      <tr id="pt-5"><td>5</td><td>$20</td></tr>
-      <tr id="pt-4"><td>4</td><td>$5</td></tr>
-    </tbody>
+    <tbody id="paytable-body"></tbody>
   </table>
 </div>
 
@@ -156,6 +149,17 @@
 
 <script>
   const PAYTABLE = { 4: 5, 5: 20, 6: 45, 7: 125, 8: 600 };
+
+  // Build paytable rows from PAYTABLE in descending order, jackpot on top
+  const ptBody = document.getElementById('paytable-body');
+  [['pt-9', '9 – 10', 'Jackpot'],
+   ...Object.keys(PAYTABLE).map(Number).sort((a,b) => b-a).map(h => [`pt-${h}`, h, `$${PAYTABLE[h]}`])
+  ].forEach(([id, hits, payout]) => {
+    const tr = document.createElement('tr');
+    tr.id = id;
+    tr.innerHTML = `<td>${hits}</td><td>${payout}</td>`;
+    ptBody.appendChild(tr);
+  });
   const BET = 5;
   const DRAW_PAUSE_MS = 100;
   const RESULT_PAUSE_MS = 1200;
@@ -250,14 +254,14 @@
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-  const PT_KEYS = [4, 5, 6, 7, 8, 9];
-
   function resetPayTable() {
-    const defaults = { 4:'$5', 5:'$20', 6:'$45', 7:'$125', 8:'$600', 9:'Jackpot' };
-    PT_KEYS.forEach(k => {
-      const row = document.getElementById(`pt-${k}`);
+    const row9 = document.getElementById('pt-9');
+    row9.className = '';
+    row9.cells[1].textContent = 'Jackpot';
+    Object.keys(PAYTABLE).forEach(h => {
+      const row = document.getElementById(`pt-${h}`);
       row.className = '';
-      row.cells[1].textContent = defaults[k];
+      row.cells[1].textContent = `$${PAYTABLE[h]}`;
     });
   }
 
