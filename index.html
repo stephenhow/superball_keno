@@ -37,7 +37,6 @@
       display: grid;
       grid-template-columns: repeat(10, 44px);
       gap: 3px;
-      margin-bottom: 20px;
     }
 
     .ball {
@@ -59,8 +58,10 @@
     .ball.miss { color: #ff4444; background: #000;    border-color: #440000; }
     .ball.hit  { color: #ff2222; background: #ddd;   border-color: #ff2222; }
 
-    /* superball: blue when revealed */
-    .ball.superball { color: #fff; background: #0055ff; border-color: #0055ff; outline: 2px solid gold; outline-offset: -2px; }
+    /* superball hit (last ball is a player pick): blue background */
+    .ball.superball     { color: #fff;    background: #0055ff; border-color: #0055ff; outline: 2px solid gold; outline-offset: -2px; }
+    /* superball miss (last ball, not a pick): blue text */
+    .ball.superball-miss { color: #4499ff; background: #000;    border-color: #4499ff; }
 
     #stats {
       font-size: 1.1em;
@@ -76,6 +77,29 @@
     .neg { color: #ff4444; }
 
     #controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+    #grid-area {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 40px;
+      margin-bottom: 20px;
+    }
+
+    #paytable {
+      border-collapse: collapse;
+      min-width: 160px;
+    }
+    #paytable th, #paytable td {
+      padding: 4px 24px 4px 8px;
+      text-align: left;
+      color: #007700;
+      font-size: 1em;
+    }
+    #paytable th { color: #00aa00; border-bottom: 1px solid #004400; }
+    #paytable tr.pt-winner td  { background: #004400; color: #00ff00; font-weight: bold; }
+    #paytable tr.pt-super td   { background: #0055ff; color: #fff;    font-weight: bold; }
+    #paytable tr.pt-jackpot td { background: gold;    color: #000;    font-weight: bold; }
 
     button {
       background: #003300;
@@ -100,7 +124,20 @@
 
 <h1>SUPERBALL KENO</h1>
 <div id="message">Press Quick Pick to start</div>
-<div id="grid"></div>
+<div id="grid-area">
+  <div id="grid"></div>
+  <table id="paytable">
+    <thead><tr><th>Hits</th><th>Payout</th></tr></thead>
+    <tbody>
+      <tr id="pt-9"><td>9 – 10</td><td>Jackpot</td></tr>
+      <tr id="pt-8"><td>8</td><td>$500</td></tr>
+      <tr id="pt-7"><td>7</td><td>$125</td></tr>
+      <tr id="pt-6"><td>6</td><td>$45</td></tr>
+      <tr id="pt-5"><td>5</td><td>$20</td></tr>
+      <tr id="pt-4"><td>4</td><td>$5</td></tr>
+    </tbody>
+  </table>
+</div>
 
 <div id="stats">
   <span class="stat-label">Jackpot: $</span><input id="s-jackpot" class="jackpot-val" type="text" value="143,000.00" onchange="jackpot = parseFloat(this.value.replace(/,/g,'')) || 0"><br>
@@ -114,6 +151,7 @@
   <button id="btn-play" onclick="startAutoplay()" disabled>Start Autoplay</button>
   <button id="btn-stop" onclick="stopAutoplay()" disabled>Stop</button>
 </div>
+
 
 <script>
   const PAYTABLE = { 4: 5, 5: 20, 6: 45, 7: 125, 8: 500 };
@@ -168,14 +206,16 @@
       const isRevealed = revealed.includes(n);
       const isHit     = isPick && isRevealed;
       const isMiss    = !isPick && isRevealed;
-      const isSuper   = n === superball && revealed.includes(n) && picks.includes(n);
+      const isSuperHit  = n === superball && revealed.includes(n) && picks.includes(n);
+      const isSuperMiss = n === superball && revealed.includes(n) && !picks.includes(n);
 
       let cls = 'ball ';
-      if      (isHit)  cls += 'hit';
-      else if (isMiss) cls += 'miss';
-      else if (isPick) cls += 'pick';
-      else             cls += 'grid';
-      if (isSuper)     cls += ' superball';
+      if      (isSuperHit)  cls += 'superball';
+      else if (isSuperMiss) cls += 'superball-miss';
+      else if (isHit)       cls += 'hit';
+      else if (isMiss)      cls += 'miss';
+      else if (isPick)      cls += 'pick';
+      else                  cls += 'grid';
 
       cell.className = cls;
     }
@@ -199,6 +239,32 @@
   }
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  const PT_KEYS = [4, 5, 6, 7, 8, 9];
+
+  function resetPayTable() {
+    const defaults = { 4:'$5', 5:'$20', 6:'$45', 7:'$125', 8:'$500', 9:'Jackpot' };
+    PT_KEYS.forEach(k => {
+      const row = document.getElementById(`pt-${k}`);
+      row.className = '';
+      row.cells[1].textContent = defaults[k];
+    });
+  }
+
+  function highlightPayTable(hits, superHit) {
+    resetPayTable();
+    if (hits < 4) return;
+    const key = hits >= 9 ? 9 : hits;
+    const row = document.getElementById(`pt-${key}`);
+    if (hits >= 9) {
+      row.className = 'pt-jackpot';
+    } else if (superHit) {
+      row.className = 'pt-super';
+      row.cells[1].textContent = `$${PAYTABLE[hits] * 4}  ★ ×4`;
+    } else {
+      row.className = 'pt-winner';
+    }
+  }
 
   function setButtons(playing) {
     document.getElementById('btn-pick').disabled = playing;
@@ -231,6 +297,7 @@
       superball = draws[19];
       revealed = [];
       renderGrid();
+      resetPayTable();
       setMessage('');
 
       // Animate reveals
@@ -254,6 +321,7 @@
       }
       net += payout;
       updateStats(payout);
+      highlightPayTable(hits, superHit);
 
       if (isJackpot) {
         setMessage(`JACKPOT!  ${hits}/10 hits — ${fmt(payout)}`);

@@ -4,14 +4,17 @@
 #include <vector>
 #include <locale.h>
 
-#define INTRA_GAME_PAUSE 1000
-#define DRAW_PAUSE 200
+#define LOSE_PAUSE 1000
+#define WIN_PAUSE 2000
+#define DRAW_PAUSE 100
 #define CONTRIBUTION_RATE 0.02
 
 #define GRID 1
 #define HIT  2
 #define MISS 3
-#define PICK 4
+#define SUPERBALL_HIT 4
+#define SUPERBALL_MISS 5
+#define PICK 6
 
 std::random_device rd;  // Obtain a random number from hardware
 std::mt19937 g(rd());   // Seed the generator
@@ -85,11 +88,13 @@ void display_stats(double jackpot, double net, int hand, double payout) {
 }
 
 void paint_draws(std::vector<int> &draws) {
+	bool last;
 	for (auto draw : draws) {
-		if (std::find(picks.begin(), picks.end(), draw) != picks.end()) {
-			draw_number(draw, HIT);
+		last = (draw == draws.back());
+		if (std::find(picks.begin(), picks.end(), draw) == picks.end()) {
+			draw_number(draw, (last ? SUPERBALL_MISS : MISS));
 		} else {
-			draw_number(draw, MISS);
+			draw_number(draw, (last ? SUPERBALL_HIT : HIT));
 		}
 		refresh();
 		napms(DRAW_PAUSE);
@@ -117,8 +122,10 @@ int main() {
 	initscr();
 	start_color();
 	init_pair(GRID, COLOR_GREEN, COLOR_BLACK);		// number grid
-	init_pair(HIT, COLOR_BLUE, COLOR_WHITE);			// hit
-	init_pair(MISS, COLOR_RED, COLOR_BLACK);		// miss
+	init_pair(HIT, COLOR_RED, COLOR_WHITE);
+	init_pair(MISS, COLOR_RED, COLOR_BLACK);
+	init_pair(SUPERBALL_HIT, COLOR_RED, COLOR_BLUE);
+	init_pair(SUPERBALL_MISS, COLOR_BLUE, COLOR_BLACK);
 	init_pair(PICK, COLOR_WHITE, COLOR_GREEN);		// picks
 	curs_set(0);
 	get_quick_picks();
@@ -142,7 +149,7 @@ int main() {
 		paint_draws(draws);
 		display_stats(jackpot, net, hand, payout);
 		refresh();
-		napms(INTRA_GAME_PAUSE);
+		napms((payout > 0) ? WIN_PAUSE : LOSE_PAUSE);
 		//isJackpot = true;
 	}
 	
