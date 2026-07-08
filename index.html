@@ -154,7 +154,8 @@
 
   // Build paytable rows from PAYTABLE in descending order, jackpot on top
   const ptBody = document.getElementById('paytable-body');
-  [['pt-9', '9 – 10', 'Jackpot'],
+  [['pt-10', '10', 'Jackpot'],
+   ['pt-9',  '9',  'Jackpot'],
    ...Object.keys(PAYTABLE).map(Number).sort((a,b) => b-a).map(h => [`pt-${h}`, h, `$${PAYTABLE[h]}`])
   ].forEach(([id, hits, payout]) => {
     const tr = document.createElement('tr');
@@ -257,9 +258,11 @@
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   function resetPayTable() {
-    const row9 = document.getElementById('pt-9');
-    row9.className = '';
-    row9.cells[1].textContent = 'Jackpot';
+    ['pt-9', 'pt-10'].forEach(id => {
+      const row = document.getElementById(id);
+      row.className = '';
+      row.cells[1].textContent = 'Jackpot';
+    });
     Object.keys(PAYTABLE).forEach(h => {
       const row = document.getElementById(`pt-${h}`);
       row.className = '';
@@ -270,7 +273,7 @@
   function highlightPayTable(hits, superHit) {
     resetPayTable();
     if (hits < 4) return;
-    const key = hits >= 9 ? 9 : hits;
+    const key = hits >= 9 ? hits : hits;
     const row = document.getElementById(`pt-${key}`);
     if (hits >= 9) {
       row.className = 'pt-jackpot';
