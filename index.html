@@ -59,8 +59,14 @@
     .ball.miss { color: #ff4444; background: #000;    border-color: #440000; }
     .ball.hit  { color: #ff2222; background: #ddd;   border-color: #ff2222; }
 
+    @keyframes superball-land {
+      0%   { background: #aaddff; color: #000; border-color: #aaddff; }
+      25%  { background: #ffffff; color: #000; border-color: #ffffff; }
+      100% { background: #0055ff; color: #fff; border-color: #0055ff; }
+    }
     /* superball hit (last ball is a player pick): blue background */
-    .ball.superball     { color: #fff;    background: #0055ff; border-color: #0055ff; outline: 2px solid gold; outline-offset: -2px; }
+    .ball.superball      { color: #fff; background: #0055ff; border-color: #0055ff; outline: 2px solid gold; outline-offset: -2px; }
+    .ball.superball.flash { animation: superball-land 400ms ease-out forwards; }
     /* superball miss (last ball, not a pick): blue text */
     .ball.superball-miss { color: #4499ff; background: #000;    border-color: #4499ff; }
 
@@ -315,7 +321,7 @@
     }
   }
 
-  async function animateSuperball(n, isHit) {
+  async function animateSuperball(n, isHit, onLand) {
     const ballEl = document.getElementById('anim-ball');
     const cell   = document.getElementById(`b${n}`);
     const msgEl  = document.getElementById('message');
@@ -360,13 +366,16 @@
     await run(fallFrames, { duration: 700, easing: 'linear' });
     superballLanded = true;
     renderGrid();
+    onLand();
+    if (isHit) cell.classList.add('flash');
 
     if (isHit) {
       await run([
         { transform: pos(tx, ty)      },
-        { transform: pos(tx, ty - 50) },
+        { transform: pos(tx, ty - 72) },
         { transform: pos(tx, ty)      },
-      ], { duration: 350, easing: 'ease-in-out' });
+      ], { duration: 400, easing: 'ease-in-out' });
+      cell.classList.remove('flash');
       await run([{ opacity: 1 }, { opacity: 0 }], { duration: 200 });
     } else {
       const midExitX = (tx + ex) / 2;
@@ -420,42 +429,41 @@
       animBall.style.display = 'none';
       renderGrid();
       resetPayTable();
-      setMessage('');
+      if (speed === 1) setMessage('');
+
+      // Score variables declared here so they're available after the loop
+      let hits = 0, superHit = false, payout = 0;
 
       // Animate reveals
       for (const d of draws) {
         revealed.push(d);
         renderGrid();
         if (d === superball) {
-          if (speed === 1) animPromise = animateSuperball(d, picks.includes(d));
-          else { superballLanded = true; renderGrid(); }
+          // Compute score now; display fires via onLand when grid turns blue
+          hits      = picks.filter(p => draws.includes(p)).length;
+          superHit  = picks.includes(superball);
+          isJackpot = hits >= 9;
+          payout    = isJackpot ? jackpot : (PAYTABLE[hits] || 0);
+          if (!isJackpot && superHit && payout > 0) payout *= 4;
+          net += payout;
+
+          const onLand = () => {
+            updateStats(payout);
+            highlightPayTable(hits, superHit);
+            if (isJackpot) {
+              setMessage(`JACKPOT!  ${hits}/10 hits — ${fmt(payout)}`);
+            } else if (payout > 0) {
+              const superMsg = superHit ? ' ★ SUPERBALL 4×!' : '';
+              setMessage(`${hits}/10 hits — ${fmt(payout)}${superMsg}`);
+            } else {
+              setMessage(`${hits}/10 hits — no win`);
+            }
+          };
+
+          if (speed === 1) animPromise = animateSuperball(d, superHit, onLand);
+          else { superballLanded = true; renderGrid(); onLand(); }
         }
         await sleep(DRAW_PAUSE_MS / speed);
-      }
-
-      // Score
-      const hits     = picks.filter(p => draws.includes(p)).length;
-      const superHit = picks.includes(superball);
-      isJackpot      = hits >= 9;
-
-      let payout = 0;
-      if (isJackpot) {
-        payout = jackpot;
-      } else {
-        payout = PAYTABLE[hits] || 0;
-        if (superHit && payout > 0) payout *= 4;
-      }
-      net += payout;
-      updateStats(payout);
-      highlightPayTable(hits, superHit);
-
-      if (isJackpot) {
-        setMessage(`JACKPOT!  ${hits}/10 hits — ${fmt(payout)}`);
-      } else if (payout > 0) {
-        const superMsg = superHit ? ' ★ SUPERBALL 4×!' : '';
-        setMessage(`${hits}/10 hits — ${fmt(payout)}${superMsg}`);
-      } else {
-        setMessage(`${hits}/10 hits — no win`);
       }
 
       await Promise.all([
