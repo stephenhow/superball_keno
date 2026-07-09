@@ -466,9 +466,13 @@
         await sleep(DRAW_PAUSE_MS / speed);
       }
 
+      const resultPause = hits === 8 ? RESULT_PAUSE_MS * 16
+                        : hits === 7 ? RESULT_PAUSE_MS * 4
+                        : payout > 0 ? 2000
+                        : RESULT_PAUSE_MS;
       await Promise.all([
         animPromise || Promise.resolve(),
-        sleep((payout > 0 ? 2000 : RESULT_PAUSE_MS) / speed),
+        sleep(resultPause / speed),
       ]);
       animPromise = null;
     }
