@@ -435,6 +435,9 @@
       // Score variables declared here so they're available after the loop
       let hits = 0, superHit = false, payout = 0;
 
+      // Brief pause before first draw at 1x so the grid reset is visible
+      if (speed === 1) await sleep(1000);
+
       // Animate reveals
       for (const d of draws) {
         revealed.push(d);
