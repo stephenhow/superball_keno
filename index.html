@@ -8,6 +8,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
+      position: relative;
       background: #000;
       color: #00cc00;
       font-family: 'Courier New', Courier, monospace;
@@ -124,6 +125,18 @@
     #btn-play { border-color: gold; color: gold; }
     #btn-play:hover:not(:disabled) { background: gold; color: #000; }
 
+    #anim-ball {
+      position: absolute;
+      left: 0; top: 0;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #66aaff, #0033cc);
+      box-shadow: 0 2px 8px rgba(0,85,255,0.7);
+      pointer-events: none;
+      display: none;
+      z-index: 1000;
+    }
+
     /* scale down for phones in landscape */
     @media (max-width: 900px) and (orientation: landscape) {
       html { zoom: 0.65; }
@@ -136,6 +149,7 @@
 </head>
 <body>
 
+<div id="anim-ball"></div>
 <h1>SUPERBALL KENO</h1>
 <div id="message">Press Quick Pick to start</div>
 <div id="grid-area">
@@ -189,6 +203,8 @@
   let revealed = [];
   let busy = false;
   let stopRequested = false;
+  let superballLanded = false;
+  let animPromise = null;
   let speed = 1;
   const SPEEDS = [1, 2, 4];
   const SPEED_LABELS = ['>', '>>', '>>>'];
@@ -234,10 +250,11 @@
       const cell = document.getElementById(`b${n}`);
       const isPick    = picks.includes(n);
       const isRevealed = revealed.includes(n);
-      const isHit     = isPick && isRevealed;
-      const isMiss    = !isPick && isRevealed;
-      const isSuperHit  = n === superball && revealed.includes(n) && picks.includes(n);
-      const isSuperMiss = n === superball && revealed.includes(n) && !picks.includes(n);
+      const isSuperball = n === superball;
+      const isHit      = isPick  && isRevealed && !(isSuperball && !superballLanded);
+      const isMiss     = !isPick && isRevealed && !(isSuperball && !superballLanded);
+      const isSuperHit  = isSuperball && isRevealed && isPick  && superballLanded;
+      const isSuperMiss = isSuperball && isRevealed && !isPick && superballLanded;
 
       let cls = 'ball ';
       if      (isSuperHit)  cls += 'superball';
@@ -298,6 +315,74 @@
     }
   }
 
+  async function animateSuperball(n, isHit) {
+    const ballEl = document.getElementById('anim-ball');
+    const cell   = document.getElementById(`b${n}`);
+    const msgEl  = document.getElementById('message');
+
+    // Cancel any leftover animations and reset inline styles
+    ballEl.getAnimations().forEach(a => a.cancel());
+    ballEl.style.transform = '';
+    ballEl.style.opacity   = '1';
+    ballEl.style.display   = 'block';
+
+    const sz       = 20;
+    const cellRect = cell.getBoundingClientRect();
+    const msgRect  = msgEl.getBoundingClientRect();
+    const gridRect = document.getElementById('grid').getBoundingClientRect();
+    // getBoundingClientRect() returns post-zoom visual coords; translate() uses
+    // pre-zoom layout coords — divide by cssZoom to convert.
+    const cssZoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const sx = gridRect.left / cssZoom;
+    const sy = (msgRect.top  + msgRect.height / 2) / cssZoom - sz / 2;
+    const tx = (cellRect.left + cellRect.width  / 2) / cssZoom - sz / 2;
+    const ty = (cellRect.top  + cellRect.height / 2) / cssZoom - sz / 2;
+    const ex = gridRect.right / cssZoom - sz / 2;
+    const pos = (x, y) => `translate(${x}px,${y}px)`;
+
+    // Run one animation step, commit final keyframe to inline styles, then cancel
+    // to avoid fill:'forwards' accumulating in the cascade across hands.
+    async function run(keyframes, opts) {
+      const anim = ballEl.animate(keyframes, { fill: 'forwards', ...opts });
+      await anim.finished;
+      anim.cancel();
+      const last = keyframes[keyframes.length - 1];
+      if (last.transform !== undefined) ballEl.style.transform = last.transform;
+      if (last.opacity  !== undefined) ballEl.style.opacity   = String(last.opacity);
+    }
+
+    // Downward parabola: x linear, y quadratic (gravity)
+    const steps = 12;
+    const fallFrames = Array.from({length: steps + 1}, (_, i) => {
+      const t = i / steps;
+      return { transform: pos(sx + (tx - sx) * t, sy + (ty - sy) * t * t), offset: t };
+    });
+    await run(fallFrames, { duration: 700, easing: 'linear' });
+    superballLanded = true;
+    renderGrid();
+
+    if (isHit) {
+      await run([
+        { transform: pos(tx, ty)      },
+        { transform: pos(tx, ty - 50) },
+        { transform: pos(tx, ty)      },
+      ], { duration: 350, easing: 'ease-in-out' });
+      await run([{ opacity: 1 }, { opacity: 0 }], { duration: 200 });
+    } else {
+      const midExitX = (tx + ex) / 2;
+      const midExitY = (ty + sy) / 2 - 60;
+      await run([
+        { transform: pos(tx, ty),              opacity: 1   },
+        { transform: pos(midExitX, midExitY),  opacity: 0.8 },
+        { transform: pos(ex, sy),              opacity: 0   },
+      ], { duration: 450, easing: 'ease-out' });
+    }
+
+    ballEl.style.display   = 'none';
+    ballEl.style.transform = '';
+    ballEl.style.opacity   = '1';
+  }
+
   function setButtons(playing) {
     document.getElementById('btn-pick').disabled = playing;
     document.getElementById('btn-play').disabled = playing;
@@ -327,7 +412,12 @@
       shuffle(pool);
       draws     = pool.slice(0, 20);
       superball = draws[19];
-      revealed = [];
+      revealed  = [];
+      superballLanded = false;
+      animPromise = null;
+      const animBall = document.getElementById('anim-ball');
+      animBall.getAnimations().forEach(a => a.cancel());
+      animBall.style.display = 'none';
       renderGrid();
       resetPayTable();
       setMessage('');
@@ -336,6 +426,10 @@
       for (const d of draws) {
         revealed.push(d);
         renderGrid();
+        if (d === superball) {
+          if (speed === 1) animPromise = animateSuperball(d, picks.includes(d));
+          else { superballLanded = true; renderGrid(); }
+        }
         await sleep(DRAW_PAUSE_MS / speed);
       }
 
@@ -364,7 +458,11 @@
         setMessage(`${hits}/10 hits — no win`);
       }
 
-      await sleep((payout > 0 ? 2000 : RESULT_PAUSE_MS) / speed);
+      await Promise.all([
+        animPromise || Promise.resolve(),
+        sleep((payout > 0 ? 2000 : RESULT_PAUSE_MS) / speed),
+      ]);
+      animPromise = null;
     }
 
     busy = false;
