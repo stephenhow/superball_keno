@@ -339,7 +339,8 @@
     // getBoundingClientRect() returns post-zoom visual coords; translate() uses
     // pre-zoom layout coords — divide by cssZoom to convert.
     const cssZoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-    const sx = gridRect.left / cssZoom;
+    const cellW = gridRect.width / 10;
+    const sx = (gridRect.left - cellW) / cssZoom;
     const sy = (msgRect.top  + msgRect.height / 2) / cssZoom - sz / 2;
     const tx = (cellRect.left + cellRect.width  / 2) / cssZoom - sz / 2;
     const ty = (cellRect.top  + cellRect.height / 2) / cssZoom - sz / 2;
