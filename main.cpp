@@ -26,6 +26,7 @@ std::random_device rd;  // Obtain a random number from hardware
 std::mt19937 g(rd());   // Seed the generator
 
 std::vector<int> picks, draws, balls;
+int speed_up = SPEED_UP;
 
 std::pair<int,int> get_pos(int n) {
 	int row, col;
@@ -103,7 +104,7 @@ void paint_draws(std::vector<int> &draws) {
 			draw_number(draw, (last ? SUPERBALL_HIT : HIT));
 		}
 		refresh();
-		napms(DRAW_PAUSE/SPEED_UP);
+		napms(DRAW_PAUSE/speed_up);
 	}
 }
 
@@ -136,13 +137,18 @@ void display_paytable() {
 
 // trying out the basics
 
-int main() {
+int main(int argc, char *argv[]) {
 	double jackpot = 143000, net=0;
 	bool isJackpot = false;
 	int hand=0;
 	int hits;
 	double payout;
 	bool super;
+
+	for (int i = 1; i < argc; i++) {
+		if (std::string(argv[i]) == "-x" && i+1 < argc)
+			speed_up = std::atoi(argv[++i]);
+	}
 
 	// initialize the balls
 	for (int n=0; n<80; n++) balls.push_back(n);
@@ -183,7 +189,7 @@ int main() {
 		if (payout > 0) display_payout(hits, (super ? SUPERBALL_PAYOUT : PICK), super);
 		display_stats(jackpot, net, hand, payout);
 		refresh();
-		napms(((payout > 0) ? WIN_PAUSE : LOSE_PAUSE)/SPEED_UP);
+		napms(((payout > 0) ? WIN_PAUSE : LOSE_PAUSE)/speed_up);
 		//isJackpot = true;
 	}
 	
