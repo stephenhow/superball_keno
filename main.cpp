@@ -19,6 +19,7 @@
 #define SUPERBALL_MISS 5
 #define PICK 6
 #define SUPERBALL_PAYOUT 7
+#define TABLE_HEADER 8
 
 #define PAYTABLE_COL_OFFSET 36
 
@@ -126,8 +127,9 @@ void display_payout(int hits, int color, bool super=false) {
 }
 
 void display_paytable() {
-	attron(COLOR_PAIR(GRID));
+	attron(COLOR_PAIR(TABLE_HEADER));
 	mvaddstr(0, PAYTABLE_COL_OFFSET, "Hits  Payout");
+	attron(COLOR_PAIR(GRID));
 	for (int hits=10; hits>=4; hits--) {
 		display_payout(hits, GRID);
 	}
@@ -164,6 +166,7 @@ int main(int argc, char *argv[]) {
 	init_pair(SUPERBALL_MISS, COLOR_BLUE, COLOR_BLACK);
 	init_pair(PICK, COLOR_WHITE, COLOR_GREEN);		// picks
 	init_pair(SUPERBALL_PAYOUT, COLOR_WHITE, COLOR_BLUE);
+	init_pair(TABLE_HEADER, COLOR_WHITE, COLOR_BLACK);
 	curs_set(0);
 	get_quick_picks();
 	
