@@ -464,7 +464,8 @@
             }
           };
 
-          if (speed === 1) animPromise = animateSuperball(d, superHit, onLand);
+          const preSuperballHits = draws.slice(0, 19).filter(b => picks.includes(b)).length;
+          if (speed === 1 && preSuperballHits >= 3) animPromise = animateSuperball(d, superHit, onLand);
           else { superballLanded = true; renderGrid(); onLand(); }
         }
         await sleep(DRAW_PAUSE_MS / speed);
