@@ -90,8 +90,8 @@ int get_payout(int hits, bool super=false) {
 void display_stats(double jackpot, double net, int hand, double payout) {
 	attron(COLOR_PAIR(1));
 	mvprintw(10, 0, "hand #%d", hand);
-	mvprintw(11, 0, "payout:  $%'8.2f", payout);
-	mvprintw(12, 0, "net: $%'8.2f", net);
+	mvprintw(11, 0, "payout:  $%'8.2f  ", payout);
+	mvprintw(12, 0, "net: $%'8.2f     ", net);
 	mvprintw(14, 0, "jackpot: $%'8.2f\n", jackpot);
 }
 
