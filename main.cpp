@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <ncurses.h>
 #include <utility>
 #include <random>
@@ -17,6 +18,9 @@
 #define SUPERBALL_HIT 4
 #define SUPERBALL_MISS 5
 #define PICK 6
+#define SUPERBALL_PAYOUT 7
+
+#define PAYTABLE_COL_OFFSET 36
 
 std::random_device rd;  // Obtain a random number from hardware
 std::mt19937 g(rd());   // Seed the generator
@@ -69,7 +73,7 @@ bool is_super(std::vector<int> &picks, std::vector<int> &draws) {
 	return (std::find(picks.begin(), picks.end(), draws.back()) != picks.end());
 }
 
-int get_payout(int hits, bool super) {
+int get_payout(int hits, bool super=false) {
 	int payout;
 	payout =
 		(hits == 8 ? 600 :
@@ -103,7 +107,31 @@ void paint_draws(std::vector<int> &draws) {
 	}
 }
 
+void display_payout(int hits, int color, bool super=false) {
+	int row,col;
+	col = PAYTABLE_COL_OFFSET;
+	row = 11-hits;
+	char buf[32];
+	int payout = get_payout(hits);
+	attron(COLOR_PAIR(color));
+	if (hits >= 9) {
+		snprintf(buf, sizeof(buf), "%2d    Jackpot", hits);
+	} else if (super) {
+		snprintf(buf, sizeof(buf), "%2d    $%d x4 = $%d", hits, payout, 4*payout);
+	} else {
+		snprintf(buf, sizeof(buf), "%2d    $%d                 ", hits, payout);
+	}
+	mvaddstr(row, col, buf);
+}
 
+void display_paytable() {
+	attron(COLOR_PAIR(GRID));
+	mvaddstr(0, PAYTABLE_COL_OFFSET, "Hits  Payout");
+	for (int hits=10; hits>=4; hits--) {
+		display_payout(hits, GRID);
+	}
+	refresh();
+}
 
 
 // trying out the basics
@@ -129,6 +157,7 @@ int main() {
 	init_pair(SUPERBALL_HIT, COLOR_RED, COLOR_BLUE);
 	init_pair(SUPERBALL_MISS, COLOR_BLUE, COLOR_BLACK);
 	init_pair(PICK, COLOR_WHITE, COLOR_GREEN);		// picks
+	init_pair(SUPERBALL_PAYOUT, COLOR_WHITE, COLOR_BLUE);
 	curs_set(0);
 	get_quick_picks();
 	
@@ -136,6 +165,7 @@ int main() {
 	while (!isJackpot) {
 		hand++;
 		draw_number_grid();
+		display_paytable();
 		net -= 5;
 		get_draws();
 		hits = get_hits(picks, draws);
@@ -145,10 +175,12 @@ int main() {
 		if (isJackpot) {
 			payout = jackpot;
 		}
+
 		net += payout;
 		jackpot += 5*CONTRIBUTION_RATE;	// 1% contribution
 		refresh();
 		paint_draws(draws);
+		if (payout > 0) display_payout(hits, (super ? SUPERBALL_PAYOUT : PICK), super);
 		display_stats(jackpot, net, hand, payout);
 		refresh();
 		napms(((payout > 0) ? WIN_PAUSE : LOSE_PAUSE)/SPEED_UP);
